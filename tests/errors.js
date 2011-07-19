@@ -13,7 +13,7 @@ $(function() {
           console.log(result);
       }
       catch (ex) {
-        console.log(ex.stack || ex.message);
+        console.log(ex.message);
       }
   });
 });
