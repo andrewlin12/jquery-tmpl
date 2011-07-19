@@ -116,39 +116,47 @@
 	jQuery.extend({
 		// Return wrapped set of template items, obtained by rendering template against data.
 		tmpl: function( tmpl, data, options, parentItem ) {
-			var ret, topLevel = !parentItem;
-			if ( topLevel ) {
-				// This is a top-level tmpl call (not from a nested template using {{tmpl}})
-				parentItem = topTmplItem;
-				tmpl = jQuery.template[tmpl] || jQuery.template( null, tmpl );
-				wrappedItems = {}; // Any wrapped items will be rebuilt, since this is top level
-			} else if ( !tmpl ) {
-				// The template item is already associated with DOM - this is a refresh.
-				// Re-evaluate rendered template for the parentItem
-				tmpl = parentItem.tmpl;
-				newTmplItems[parentItem.key] = parentItem;
-				parentItem.nodes = [];
-				if ( parentItem.wrapped ) {
-					updateWrapped( parentItem, parentItem.wrapped );
-				}
-				// Rebuild, without creating a new template item
-				return jQuery( build( parentItem, null, parentItem.tmpl( jQuery, parentItem ) ));
-			}
-			if ( !tmpl ) {
-				return []; // Could throw...
-			}
-			if ( typeof data === "function" ) {
-				data = data.call( parentItem || {} );
-			}
-			if ( options && options.wrapped ) {
-				updateWrapped( options, options.wrapped );
-			}
-			ret = jQuery.isArray( data ) ?
-				jQuery.map( data, function( dataItem ) {
-					return dataItem ? newTmplItem( options, parentItem, tmpl, dataItem ) : null;
-				}) :
-				[ newTmplItem( options, parentItem, tmpl, data ) ];
-			return topLevel ? jQuery( build( parentItem, null, ret ) ) : ret;
+      var templateId = tmpl.id;
+      try {
+        var ret, topLevel = !parentItem;
+        if (topLevel) {
+          // This is a top-level tmpl call (not from a nested template using {{tmpl}})
+          parentItem = topTmplItem;
+          tmpl = jQuery.template[tmpl] || jQuery.template(null, tmpl);
+          wrappedItems = {}; // Any wrapped items will be rebuilt, since this is top level
+        }
+        else if (!tmpl) {
+          // The template item is already associated with DOM - this is a refresh.
+          // Re-evaluate rendered template for the parentItem
+          tmpl = parentItem.tmpl;
+          newTmplItems[parentItem.key] = parentItem;
+          parentItem.nodes = [];
+          if (parentItem.wrapped) {
+            updateWrapped(parentItem, parentItem.wrapped);
+          }
+          // Rebuild, without creating a new template item
+          return jQuery(build(parentItem, null, parentItem.tmpl(jQuery, parentItem)));
+        }
+        if (!tmpl) {
+          return []; // Could throw...
+        }
+        if (typeof data === "function") {
+          data = data.call(parentItem || {});
+        }
+        if (options && options.wrapped) {
+          updateWrapped(options, options.wrapped);
+        }
+        ret = jQuery.isArray(data) ? jQuery.map(data, function(dataItem) {
+          return dataItem ? newTmplItem(options, parentItem, tmpl, dataItem) : null;
+        }) : [newTmplItem(options, parentItem, tmpl, data)];
+        return topLevel ? jQuery(build(parentItem, null, ret)) : ret;
+      }
+      catch (err) {
+        if (templateId && err.message.indexOf("[#" + templateId + "]") === -1) {
+          err.message = "[#" + templateId + "] " + err.message;
+        }
+        throw err;
+      }
 		},
 
 		// Return rendered template item for an element.
@@ -174,21 +182,38 @@
 		// to $.template( null, templateString )
 		template: function( name, tmpl ) {
 			if (tmpl) {
-				// Compile template and associate with name
-				if ( typeof tmpl === "string" ) {
-					// This is an HTML string being passed directly in.
-					tmpl = buildTmplFn( tmpl );
-				} else if ( tmpl instanceof jQuery ) {
-					tmpl = tmpl[0] || {};
-				}
-				if ( tmpl.nodeType ) {
-					// If this is a template block, use cached copy, or generate tmpl function and cache.
-					tmpl = jQuery.data( tmpl, "tmpl" ) || jQuery.data( tmpl, "tmpl", buildTmplFn( tmpl.innerHTML ));
-					// Issue: In IE, if the container element is not a script block, the innerHTML will remove quotes from attribute values whenever the value does not include white space.
-					// This means that foo="${x}" will not work if the value of x includes white space: foo="${x}" -> foo=value of x.
-					// To correct this, include space in tag: foo="${ x }" -> foo="value of x"
-				}
-				return typeof name === "string" ? (jQuery.template[name] = tmpl) : tmpl;
+        if (tmpl instanceof jQuery) {
+          templateId = tmpl.attr("id");
+        }
+        else {
+          templateId = name;
+        }
+
+        try {
+          // Compile template and associate with name
+          if (typeof tmpl === "string") {
+            // This is an HTML string being passed directly in.
+            tmpl = buildTmplFn(tmpl);
+          }
+          else if (tmpl instanceof jQuery) {
+            tmpl = tmpl[0] || {};
+          }
+          if (tmpl.nodeType) {
+            // If this is a template block, use cached copy, or generate tmpl function and cache.
+            tmpl = jQuery.data(tmpl, "tmpl") || jQuery.data(tmpl, "tmpl", buildTmplFn(tmpl.innerHTML));
+          // Issue: In IE, if the container element is not a script block, the innerHTML will remove quotes from attribute values whenever the value does not include white space.
+          // This means that foo="${x}" will not work if the value of x includes white space: foo="${x}" -> foo=value of x.
+          // To correct this, include space in tag: foo="${ x }" -> foo="value of x"
+          }
+          return typeof name === "string" ? (jQuery.template[name] = tmpl) : tmpl;
+        }
+        catch (err) {
+          if (templateId) {
+            err.message = "[#" + templateId + "] " + err.message;
+          }
+
+          throw err;
+        }
 			}
 			// Return named compiled template
 			return name ? (typeof name !== "string" ? jQuery.template( null, name ):
@@ -314,50 +339,91 @@
 
 	// Generate a reusable function that will serve to render a template against data
 	function buildTmplFn( markup ) {
-		return new Function("jQuery","$item",
-			// Use the variable __ to hold a string array while building the compiled template. (See https://github.com/jquery/jquery-tmpl/issues#issue/10).
-			"var $=jQuery,call,__=[],$data=$item.data;" +
+    var tags = [];
+    var errContext = [];
+    // Use the variable __ to hold a string array while building the compiled template. (See https://github.com/jquery/jquery-tmpl/issues#issue/10).
+    var fnBody = "var $=jQuery,call,__=[],$data=$item.data;" +
 
-			// Introduce the data as local variables using with(){}
-			"with($data){__.push('" +
+      // Introduce the data as local variables using with(){}
+      "with($data){__.push('" +
 
-			// Convert the template into pure JavaScript
-			jQuery.trim(markup)
-				.replace( /([\\'])/g, "\\$1" )
-				.replace( /[\r\t\n]/g, " " )
-				.replace( /\$\{([^\}]*)\}/g, "{{= $1}}" )
-				.replace( /\{\{(\/?)(\w+|.)(?:\(((?:[^\}]|\}(?!\}))*?)?\))?(?:\s+(.*?)?)?(\(((?:[^\}]|\}(?!\}))*?)\))?\s*\}\}/g,
-				function( all, slash, type, fnargs, target, parens, args ) {
-					var tag = jQuery.tmpl.tag[ type ], def, expr, exprAutoFnDetect;
-					if ( !tag ) {
-						throw "Unknown template tag: " + type;
-					}
-					def = tag._default || [];
-					if ( parens && !/\w$/.test(target)) {
-						target += parens;
-						parens = "";
-					}
-					if ( target ) {
-						target = unescape( target );
-						args = args ? ("," + unescape( args ) + ")") : (parens ? ")" : "");
-						// Support for target being things like a.toLowerCase();
-						// In that case don't call with template item as 'this' pointer. Just evaluate...
-						expr = parens ? (target.indexOf(".") > -1 ? target + unescape( parens ) : ("(" + target + ").call($item" + args)) : target;
-						exprAutoFnDetect = parens ? expr : "(typeof(" + target + ")==='function'?(" + target + ").call($item):(" + target + "))";
-					} else {
-						exprAutoFnDetect = expr = def.$1 || "null";
-					}
-					fnargs = unescape( fnargs );
-					return "');" +
-						tag[ slash ? "close" : "open" ]
-							.split( "$notnull_1" ).join( target ? "typeof(" + target + ")!=='undefined' && (" + target + ")!=null" : "true" )
-							.split( "$1a" ).join( exprAutoFnDetect )
-							.split( "$1" ).join( expr )
-							.split( "$2" ).join( fnargs || def.$2 || "" ) +
-						"__.push('";
-				}) +
-			"');}return __;"
-		);
+      // Convert the template into pure JavaScript
+      jQuery.trim(markup)
+        .replace( /([\\'])/g, "\\$1" )
+        .replace( /[\r\t\n]/g, " " )
+        .replace( /\$\{([^\}]*)\}/g, "{{= $1}}" )
+        .replace( /\{\{(\/?)(\w+|.)(?:\(((?:[^\}]|\}(?!\}))*?)?\))?(?:\s+(.*?)?)?(\(((?:[^\}]|\}(?!\}))*?)\))?\s*\}\}/g,
+        function( all, slash, type, fnargs, target, parens, args ) {
+          tags.push(arguments);
+
+          var tag = jQuery.tmpl.tag[ type ], def, expr, exprAutoFnDetect;
+          if ( !tag ) {
+            throw new Error("Unknown template tag: " + type + " near '" + all + "'");
+          }
+          def = tag._default || [];
+          if ( parens && !/\w$/.test(target)) {
+            target += parens;
+            parens = "";
+          }
+          if ( target ) {
+            target = unescape( target );
+            args = args ? ("," + unescape( args ) + ")") : (parens ? ")" : "");
+            // Support for target being things like a.toLowerCase();
+            // In that case don't call with template item as 'this' pointer. Just evaluate...
+            expr = parens ? (target.indexOf(".") > -1 ? target + unescape( parens ) : ("(" + target + ").call($item" + args)) : target;
+            exprAutoFnDetect = parens ? expr : "(typeof(" + target + ")==='function'?(" + target + ").call($item):(" + target + "))";
+          } else {
+            exprAutoFnDetect = expr = def.$1 || "null";
+          }
+          fnargs = unescape( fnargs );
+
+          var _try = "", _catch = "";
+          if (slash && tag.close) {
+            _catch = '}catch(err){if(err.nested){err.message+=" inside ";}else{err.message+=" - ";err.message+="near ";}err.message+="\'' + errContext.pop() +'\'";err.nested=true;throw err;}';
+          }
+          else if (tag.close) {
+            errContext.push(all);
+            _try = "try{";
+          }
+
+          return "');" + _try +
+            tag[ slash ? "close" : "open" ]
+              .split( "$notnull_1" ).join( target ? "typeof(" + target + ")!=='undefined' && (" + target + ")!=null" : "true" )
+              .split( "$1a" ).join( exprAutoFnDetect )
+              .split( "$1" ).join( expr )
+              .split( "$2" ).join( fnargs || def.$2 || "" ) + _catch +
+            "__.push('";
+        }) +
+      "');}return __;"
+
+    console.log(fnBody);
+    try {
+      return new Function("jQuery", "$item", fnBody);
+    }
+    catch (err) {
+      if (err.name === "SyntaxError") {
+        if (errContext.length > 0) {
+          throw new SyntaxError("Missing end tag for '" + errContext.pop() + "'.")
+        }
+
+        $.each(tags, function(i, tag) {
+          var all = tag[0];
+          var target = tag[4];
+          if (target) {
+            try {
+              new Function("jQuery", "$item", target);
+            }
+            catch (syntaxError) {
+              syntaxError.message += ". Near '" + all + "'";
+              throw syntaxError;
+            }
+          }
+        });
+      }
+
+      // If we don't know how to handle this, throw the original error
+      throw err;
+    }
 	}
 	function updateWrapped( options, wrapped ) {
 		// Build the wrapped content.

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>jquery-tmpl unit tests</title>
+		<script type="text/javascript" src="http://code.jquery.com/jquery-1.6.2.min.js"></script>
+		<script type="text/javascript" src="../jquery.tmpl.js"></script>
+		<script type="text/javascript" src="errors.js"></script>
+	</head>
+	<body>
+    <script id="bad_expression" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{if bogus dingle}} true {{else}} false {{/if}}</div>
+    </script>
+
+    <script id="bad_tag" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{ifx bogus dingle}} true {{else}} false {{/if}}</div>
+    </script>
+
+    <script id="bad_bracing" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{if bogus} true {{else}} false {{/if}}</div>
+    </script>
+
+    <script id="bad_property" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{if bogus.dingle}} true {{else}} false {{/if}}</div>
+    </script>
+
+    <script id="bad_property_nested_if" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{if false}} true {{else}} {{if bogus.dingle}}false{{/if}} {{/if}}</div>
+    </script>
+
+    <script id="missing_end_tag" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{if false}} true {{else}} {{if bogus.dingle}}false {{/if}}</div>
+    </script>
+
+    <script id="nested_tmpl" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>{{tmpl "#nested_tmpl_child"}}</div>
+    </script>
+    <script id="nested_tmpl_child" type="text/x-jquery-tmpljavascript" charset="utf-8">
+      <div>{{if false}} true {{else}} {{if bogus.dingle}}false {{/if}}</div>
+    </script>
+
+    <script id="sanity1" type="text/x-jquery-tmpljavascript" charset="utf-8" class="errors-test">
+      <div>${real.thing}</div>
+    </script>
+
+	</body>
+</html>
