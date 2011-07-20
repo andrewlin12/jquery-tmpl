@@ -265,6 +265,9 @@
         open: "if(($notnull_1) && $1a){",
         close: "}"
       },
+      "elif": {
+        open: "}else if(($notnull_1) && $1a){"
+      },
       "else": {
         _default: {
           $1: "true"

@@ -318,7 +318,7 @@ module("Commands");
 
 	});
 
-	test("{{if}} and {{else}}", function() {
+	test("{{if}} and {{ elif }} and {{else}}", function() {
 		test_handler( "if:true", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:true }), 'TRUE' );
 		test_handler( "if:false", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:false }), 'FALSE' );
 		test_handler( "if:null", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:null }), 'FALSE' );
@@ -329,6 +329,14 @@ module("Commands");
 		test_handler( "if:A", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:"A" }), 'TRUE' );
 		test_handler( "if:0", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:0 }), 'FALSE' );
 		test_handler( "if:1", R('{{if a}}TRUE{{else}}FALSE{{/if}}', { a:1 }), 'TRUE' );
+
+    test_handler( "elif:if", R('{{if a}}TRUE{{elif b}}ELIF{{/if}}', { a:1, b:0 }), 'TRUE' );
+    test_handler( "elif:elif", R('{{if a}}TRUE{{elif b}}ELIF{{/if}}', { a:0, b:1 }), 'ELIF' );
+    test_handler( "elif:0", R('{{if a}}TRUE{{elif b}}ELIF{{/if}}', { a:0, b:0 }), '' );
+    test_handler( "elif+else:if", R('{{if a}}TRUE{{elif b}}ELIF{{else}}FALSE{{/if}}', { a:1, b:0 }), 'TRUE' );
+    test_handler( "elif+else:elif", R('{{if a}}TRUE{{elif b}}ELIF{{else}}FALSE{{/if}}', { a:0, b:1 }), 'ELIF' );
+    test_handler( "elif+else:else", R('{{if a}}TRUE{{elif b}}ELIF{{else}}FALSE{{/if}}', { a:0, b:0 }), 'FALSE' );
+
 
 		test_handler( "/if ignores following text", R('{{if a}}TRUE{{else}}FALSE{{/if a}}', { a:1 }), 'TRUE' );
 
