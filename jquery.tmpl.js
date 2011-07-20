@@ -390,7 +390,7 @@
 
       var _try = "", _catch = "";
       if (slash && tag.close) {
-        _catch = '}catch(err){if(err.nested){err.message+=" inside ";}else{err.message+=" - ";err.message+="near ";}err.message+="\'' + errContext.pop() + '\'";err.nested=true;throw err;}';
+        _catch = '}catch(err){if(err.nested){err.message+=" inside ";}else{err.message+=" - ";err.message+="near ";}err.message+="\'' + errContext.pop().replace(/"/g, '\\"') + '\'";err.nested=true;throw err;}';
       }
       else if (tag.close) {
         errContext.push(all);
